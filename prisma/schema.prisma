@@ -1,0 +1,207 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Unit {
+  SQFT
+  LF
+  PIECE
+  ROLL
+  DAY
+  HOUR
+}
+
+enum PropertyType {
+  Residential
+  Nonresidential
+}
+
+enum ContractType {
+  LumpSum
+  Separated
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         String   // "Owner", "Sales", "Marketing" (RBAC minimal for now)
+  createdAt    DateTime @default(now())
+}
+
+model OrgSettings {
+  id                       String   @id @default(cuid())
+  overheadPercent          Decimal  @default(15.0)
+  mileageRatePerMile       Decimal  @default(0.70)
+  perDiemPerDay            Decimal  @default(30.00)
+  defaultSalesTaxRatePct   Decimal? // optional default, can be null
+  bucketSetId              String?
+  bucketSet                BucketSet? @relation(fields: [bucketSetId], references: [id])
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model BucketSet {
+  id        String      @id @default(cuid())
+  name      String
+  // sum to 100
+  buckets   BucketDef[]
+  createdAt DateTime    @default(now())
+  orgSettings OrgSettings[]
+}
+
+model BucketDef {
+  id          String   @id @default(cuid())
+  bucketSetId String
+  name        String
+  percent     Decimal  // validate total = 100
+  // metadata (e.g., owner split, category)
+  meta        Json?
+  BucketSet   BucketSet @relation(fields: [bucketSetId], references: [id], onDelete: Cascade)
+}
+
+model InventoryItem {
+  id           String  @id @default(cuid())
+  sku          String? @unique
+  name         String
+  unit         Unit
+  defaultCost  Decimal // our cost basis
+  defaultPrice Decimal // typical sell price (optional anchor)
+  active       Boolean @default(true)
+  notes        String?
+  createdAt    DateTime @default(now())
+  purchaseLines PurchaseLine[]
+  jobMaterials JobMaterial[]
+  stock        InventoryStock[]
+}
+
+model InventoryStock {
+  id             String @id @default(cuid())
+  inventoryItemId String
+  quantity       Decimal // in unit terms
+  location       String? // optional
+  InventoryItem  InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model Job {
+  id                 String @id @default(cuid())
+  code               String @unique
+  name               String
+  clientName         String
+  address            String?
+  propertyType       PropertyType
+  contractType       ContractType
+  salesTaxRatePct    Decimal? // per-job override
+  salesperson        String?
+  channel            String?  // e.g., referral, IG, showroom
+  productType        String?  // e.g., star, matte, fascia
+  quoteTotal         Decimal  // user-entered selling price (excl. sales tax)
+  paymentPlan        String   // '50/25/25' etc.
+  overheadOverridePct Decimal? // optional per-job override
+  warrantyReservePct Decimal?  // per-job override (default 3)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  changeOrders       ChangeOrder[]
+  materials          JobMaterial[]
+  purchases          Purchase[]
+  laborEntries       LaborEntry[]
+  travelEntries      TravelEntry[]
+  payments           Payment[]
+  bucketAllocations  BucketAllocation[] // calculated snapshot at time of "Finalize"
+}
+
+model ChangeOrder {
+  id       String  @id @default(cuid())
+  jobId    String
+  name     String
+  amount   Decimal // +revenue impact; costs recorded via additional materials/labor if needed
+  Job      Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Purchase {
+  id            String @id @default(cuid())
+  jobId         String
+  supplierName  String
+  shippingCost  Decimal @default(0)
+  notes         String?
+  createdAt     DateTime @default(now())
+  Job           Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  lines         PurchaseLine[]
+}
+
+model PurchaseLine {
+  id              String @id @default(cuid())
+  purchaseId      String
+  inventoryItemId String?
+  description     String
+  unit            Unit
+  quantity        Decimal
+  unitCost        Decimal
+  Purchase        Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  InventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+}
+
+model JobMaterial {
+  id              String @id @default(cuid())
+  jobId           String
+  inventoryItemId String?
+  description     String
+  unit            Unit
+  quantityUsed    Decimal
+  fromStock       Boolean @default(false) // true if pulled from InventoryStock
+  wastePercent    Decimal @default(0)     // optional
+  Job             Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  InventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+}
+
+model LaborEntry {
+  id          String @id @default(cuid())
+  jobId       String
+  kind        String // "inhouse_hourly" | "subcontract_daily"
+  rate        Decimal
+  units       Decimal // hours or days
+  notes       String?
+  Job         Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model TravelEntry {
+  id          String @id @default(cuid())
+  jobId       String
+  miles       Decimal @default(0)
+  perDiemDays Decimal @default(0)
+  lodging     Decimal @default(0) // optional
+  other       Decimal @default(0)
+  notes       String?
+  Job         Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id          String @id @default(cuid())
+  jobId       String
+  kind        String // "Deposit" | "Progress" | "Final" | "Upfront"
+  amount      Decimal
+  feePct      Decimal? // optional processing fee %
+  feeFlat     Decimal? // optional flat fee
+  receivedAt  DateTime?
+  Job         Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model BucketAllocation {
+  id          String @id @default(cuid())
+  jobId       String
+  snapshot    Json   // { buckets: [{name, percent, amount}], basis: "profit_for_allocation", totals... }
+  createdAt   DateTime @default(now())
+  Job         Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
