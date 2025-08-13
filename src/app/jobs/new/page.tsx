@@ -14,6 +14,8 @@ import { toast } from 'sonner'
 export default function NewJobPage() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [propertyType, setPropertyType] = useState<'Residential' | 'Nonresidential'>('Residential')
+  const [contractType, setContractType] = useState<'LumpSum' | 'Separated'>('LumpSum')
 
   const createJob = trpc.jobs.create.useMutation({
     onSuccess: (job) => {
@@ -26,15 +28,17 @@ export default function NewJobPage() {
     },
   })
 
-  const handleSubmit = (formData: FormData) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     setIsSubmitting(true)
+    const formData = new FormData(e.currentTarget)
     const payload = {
       code: (formData.get('code') as string) || '',
       name: (formData.get('name') as string) || '',
       clientName: (formData.get('clientName') as string) || '',
       address: (formData.get('address') as string) || undefined,
-      propertyType: (formData.get('propertyType') as 'Residential' | 'Nonresidential') || 'Residential',
-      contractType: (formData.get('contractType') as 'LumpSum' | 'Separated') || 'LumpSum',
+      propertyType,
+      contractType,
       salesTaxRatePct: (formData.get('salesTaxRatePct') as string) ? parseFloat(formData.get('salesTaxRatePct') as string) : undefined,
       salesperson: (formData.get('salesperson') as string) || undefined,
       channel: (formData.get('channel') as string) || undefined,
@@ -58,7 +62,7 @@ export default function NewJobPage() {
             <CardDescription>Enter job details to start tracking this project.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="code">Job Code</Label>
@@ -84,7 +88,8 @@ export default function NewJobPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="propertyType">Property Type</Label>
-                  <Select name="propertyType" defaultValue="Residential">
+                  <input type="hidden" name="propertyType" value={propertyType} />
+                  <Select value={propertyType} onValueChange={(v) => setPropertyType(v as any)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -96,7 +101,8 @@ export default function NewJobPage() {
                 </div>
                 <div>
                   <Label htmlFor="contractType">Contract Type</Label>
-                  <Select name="contractType" defaultValue="LumpSum">
+                  <input type="hidden" name="contractType" value={contractType} />
+                  <Select value={contractType} onValueChange={(v) => setContractType(v as any)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

@@ -10,57 +10,57 @@ const jobInputSchema = z.object({
   address: z.string().optional(),
   propertyType: z.enum(['Residential', 'Nonresidential']),
   contractType: z.enum(['LumpSum', 'Separated']),
-  salesTaxRatePct: z.number().optional(),
+  salesTaxRatePct: z.coerce.number().optional(),
   salesperson: z.string().optional(),
   channel: z.string().optional(),
   productType: z.string().optional(),
-  quoteTotal: z.number(),
+  quoteTotal: z.coerce.number(),
   paymentPlan: z.string(),
-  overheadOverridePct: z.number().optional(),
-  warrantyReservePct: z.number().optional(),
+  overheadOverridePct: z.coerce.number().optional(),
+  warrantyReservePct: z.coerce.number().optional(),
   notes: z.string().optional(),
 })
 
 const changeOrderSchema = z.object({
   name: z.string(),
-  amount: z.number(),
+  amount: z.coerce.number(),
 })
 
 const purchaseLineSchema = z.object({
   inventoryItemId: z.string().optional(),
   description: z.string(),
   unit: z.enum(['SQFT', 'LF', 'PIECE', 'ROLL', 'DAY', 'HOUR']),
-  quantity: z.number(),
-  unitCost: z.number(),
+  quantity: z.coerce.number(),
+  unitCost: z.coerce.number(),
 })
 
 const purchaseSchema = z.object({
   supplierName: z.string(),
-  shippingCost: z.number(),
+  shippingCost: z.coerce.number(),
   notes: z.string().optional(),
   lines: z.array(purchaseLineSchema),
 })
 
 const laborEntrySchema = z.object({
   kind: z.string(),
-  rate: z.number(),
-  units: z.number(),
+  rate: z.coerce.number(),
+  units: z.coerce.number(),
   notes: z.string().optional(),
 })
 
 const travelEntrySchema = z.object({
-  miles: z.number(),
-  perDiemDays: z.number(),
-  lodging: z.number(),
-  other: z.number(),
+  miles: z.coerce.number(),
+  perDiemDays: z.coerce.number(),
+  lodging: z.coerce.number(),
+  other: z.coerce.number(),
   notes: z.string().optional(),
 })
 
 const paymentSchema = z.object({
   kind: z.string(),
-  amount: z.number(),
-  feePct: z.number().optional(),
-  feeFlat: z.number().optional(),
+  amount: z.coerce.number(),
+  feePct: z.coerce.number().optional(),
+  feeFlat: z.coerce.number().optional(),
   receivedAt: z.date().optional(),
 })
 
