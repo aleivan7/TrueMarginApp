@@ -3,16 +3,16 @@ import { router, publicProcedure } from '@/lib/trpc/server'
 import { Decimal } from '@prisma/client/runtime/library'
 
 const orgSettingsSchema = z.object({
-  overheadPercent: z.number(),
-  mileageRatePerMile: z.number(),
-  perDiemPerDay: z.number(),
-  defaultSalesTaxRatePct: z.number().optional(),
+  overheadPercent: z.coerce.number(),
+  mileageRatePerMile: z.coerce.number(),
+  perDiemPerDay: z.coerce.number(),
+  defaultSalesTaxRatePct: z.coerce.number().optional(),
   bucketSetId: z.string().optional(),
 })
 
 const bucketDefSchema = z.object({
   name: z.string(),
-  percent: z.number(),
+  percent: z.coerce.number(),
   meta: z.any().optional(),
 })
 
@@ -20,6 +20,13 @@ const bucketSetSchema = z.object({
   name: z.string(),
   buckets: z.array(bucketDefSchema),
 })
+
+function assertBucketTotalIsHundred(buckets: Array<{ percent: number }>) {
+  const total = buckets.reduce((sum, b) => sum + b.percent, 0)
+  if (Math.abs(total - 100) > 0.01) {
+    throw new Error(`Bucket percentages must sum to 100%. Current total: ${total.toFixed(2)}%`)
+  }
+}
 
 export const settingsRouter = router({
   // Organization Settings
@@ -75,6 +82,7 @@ export const settingsRouter = router({
   createBucketSet: publicProcedure
     .input(bucketSetSchema)
     .mutation(async ({ ctx, input }) => {
+      assertBucketTotalIsHundred(input.buckets)
       return ctx.prisma.bucketSet.create({
         data: {
           name: input.name,
@@ -98,6 +106,7 @@ export const settingsRouter = router({
       data: bucketSetSchema,
     }))
     .mutation(async ({ ctx, input }) => {
+      assertBucketTotalIsHundred(input.data.buckets)
       // Delete existing buckets and recreate
       await ctx.prisma.bucketDef.deleteMany({
         where: { bucketSetId: input.id },

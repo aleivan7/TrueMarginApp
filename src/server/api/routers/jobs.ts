@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { router, publicProcedure } from '@/lib/trpc/server'
 import { Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
+import { calculateJobProfit } from '@/lib/calc/job-calculations'
 
 const jobInputSchema = z.object({
   code: z.string(),
@@ -62,6 +63,15 @@ const paymentSchema = z.object({
   feePct: z.coerce.number().optional(),
   feeFlat: z.coerce.number().optional(),
   receivedAt: z.date().optional(),
+})
+
+const jobMaterialSchema = z.object({
+  inventoryItemId: z.string().optional(),
+  description: z.string(),
+  unit: z.enum(['SQFT', 'LF', 'PIECE', 'ROLL', 'DAY', 'HOUR']),
+  quantityUsed: z.coerce.number(),
+  fromStock: z.boolean().optional(),
+  wastePercent: z.coerce.number().optional(),
 })
 
 export const jobsRouter = router({
@@ -286,23 +296,141 @@ export const jobsRouter = router({
       })
     }),
 
+  addMaterial: publicProcedure
+    .input(z.object({
+      jobId: z.string(),
+      material: jobMaterialSchema,
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.jobMaterial.create({
+        data: {
+          jobId: input.jobId,
+          inventoryItemId: input.material.inventoryItemId,
+          description: input.material.description,
+          unit: input.material.unit,
+          quantityUsed: new Prisma.Decimal(input.material.quantityUsed),
+          fromStock: input.material.fromStock ?? false,
+          wastePercent: input.material.wastePercent ? new Prisma.Decimal(input.material.wastePercent) : new Prisma.Decimal(0),
+        },
+      })
+    }),
+
+  pnl: publicProcedure
+    .input(z.string())
+    .query(async ({ ctx, input }) => {
+      const job = await ctx.prisma.job.findUnique({
+        where: { id: input },
+        include: {
+          changeOrders: true,
+          purchases: { include: { lines: true } },
+          laborEntries: true,
+          travelEntries: true,
+          payments: true,
+        },
+      })
+
+      if (!job) throw new Error('Job not found')
+
+      const org = await ctx.prisma.orgSettings.findFirst()
+      const bucketSet = org?.bucketSetId
+        ? await ctx.prisma.bucketSet.findUnique({ where: { id: org.bucketSetId }, include: { buckets: true } })
+        : null
+
+      const jobInput = {
+        quoteTotal: new Decimal(job.quoteTotal.toString()),
+        changeOrders: job.changeOrders.map(co => ({ amount: new Decimal(co.amount.toString()) })),
+        purchases: job.purchases.map(p => ({
+          shippingCost: new Decimal(p.shippingCost.toString()),
+          lines: p.lines.map(l => ({ quantity: new Decimal(l.quantity.toString()), unitCost: new Decimal(l.unitCost.toString()) })),
+        })),
+        laborEntries: job.laborEntries.map(le => ({ rate: new Decimal(le.rate.toString()), units: new Decimal(le.units.toString()) })),
+        travelEntries: job.travelEntries.map(te => ({
+          miles: new Decimal(te.miles.toString()),
+          perDiemDays: new Decimal(te.perDiemDays.toString()),
+          lodging: new Decimal(te.lodging.toString()),
+          other: new Decimal(te.other.toString()),
+        })),
+        payments: job.payments.map(pm => ({
+          amount: new Decimal(pm.amount.toString()),
+          feePct: pm.feePct ? new Decimal(pm.feePct.toString()) : null,
+          feeFlat: pm.feeFlat ? new Decimal(pm.feeFlat.toString()) : null,
+        })),
+        overheadOverridePct: job.overheadOverridePct ? new Decimal(job.overheadOverridePct.toString()) : null,
+        warrantyReservePct: job.warrantyReservePct ? new Decimal(job.warrantyReservePct.toString()) : null,
+      }
+
+      const orgInput = {
+        overheadPercent: new Decimal((org?.overheadPercent ?? new Decimal(15)).toString()),
+        mileageRatePerMile: new Decimal((org?.mileageRatePerMile ?? new Decimal(0.7)).toString()),
+        perDiemPerDay: new Decimal((org?.perDiemPerDay ?? new Decimal(30)).toString()),
+      }
+
+      const bucketsInput = (bucketSet?.buckets ?? []).map(b => ({
+        name: b.name,
+        percent: new Decimal(b.percent.toString()),
+        meta: b.meta as any,
+      }))
+
+      const result = calculateJobProfit(jobInput, orgInput, bucketsInput)
+
+      return {
+        revenue: result.revenue.toNumber(),
+        directMaterialCost: result.directMaterialCost.toNumber(),
+        directLaborCost: result.directLaborCost.toNumber(),
+        travelCost: result.travelCost.toNumber(),
+        paymentFees: result.paymentFees.toNumber(),
+        warrantyReserve: result.warrantyReserve.toNumber(),
+        overheadAllocation: result.overheadAllocation.toNumber(),
+        contributionMargin: result.contributionMargin.toNumber(),
+        fullyLoadedProfit: result.fullyLoadedProfit.toNumber(),
+        profitForAllocation: result.profitForAllocation.toNumber(),
+        bucketAllocations: result.bucketAllocations.map(b => ({
+          name: b.name,
+          percent: b.percent.toNumber(),
+          amount: b.amount.toNumber(),
+          meta: b.meta,
+        })),
+      }
+    }),
+
   finalize: publicProcedure
     .input(z.string())
     .mutation(async ({ ctx, input }) => {
-      // This will be implemented to create a BucketAllocation snapshot
-      // For now, return the job with all related data
+      // Compute current P&L and create a snapshot
+      const pnl = await (async () => {
+        const res = await jobsRouter._def.procedures.pnl({
+          ctx,
+          input,
+          path: 'jobs.pnl',
+          rawInput: input,
+          type: 'query',
+        } as any)
+        return res as any
+      })()
+
+      await ctx.prisma.bucketAllocation.create({
+        data: {
+          jobId: input,
+          snapshot: {
+            buckets: pnl.bucketAllocations,
+            basis: 'profit_for_allocation',
+            totals: {
+              profitForAllocation: pnl.profitForAllocation,
+              totalAllocated: pnl.bucketAllocations.reduce((s: number, b: any) => s + b.amount, 0),
+            },
+          } as any,
+        },
+      })
+
       return ctx.prisma.job.findUnique({
         where: { id: input },
         include: {
           changeOrders: true,
-          purchases: {
-            include: {
-              lines: true,
-            },
-          },
+          purchases: { include: { lines: true } },
           laborEntries: true,
           travelEntries: true,
           payments: true,
+          bucketAllocations: { orderBy: { createdAt: 'desc' }, take: 1 },
         },
       })
     }),
