@@ -21,8 +21,9 @@ export default function BucketsPage() {
 
   const utils = trpc.useUtils()
 
-  const { data: bucketSets, isLoading } = trpc.settings.listBucketSets.useQuery()
+  const { data: bucketSetsRaw, isLoading } = trpc.settings.listBucketSets.useQuery()
   const { data: orgSettings } = trpc.settings.getOrgSettings.useQuery()
+  const bucketSets = Array.isArray(bucketSetsRaw) ? bucketSetsRaw : []
 
   const createBucketSet = trpc.settings.createBucketSet.useMutation({
     onSuccess: () => {
@@ -255,7 +256,7 @@ export default function BucketsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {bucketSets?.map((bucketSet) => (
+                  {bucketSets.map((bucketSet) => (
                     <TableRow key={bucketSet.id}>
                       <TableCell className="font-medium">{bucketSet.name}</TableCell>
                       <TableCell>

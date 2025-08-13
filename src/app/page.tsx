@@ -16,20 +16,6 @@ import {
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                TrueMargin
-              </h1>
-            </div>
-            <Navigation />
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
@@ -98,88 +84,78 @@ export default function HomePage() {
             <CardContent>
               <div className="text-2xl font-bold">11</div>
               <p className="text-xs text-muted-foreground">
-                Configured buckets
+                Total buckets
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Settings</CardTitle>
-              <Settings className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Users</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">✓</div>
+              <div className="text-2xl font-bold">2</div>
               <p className="text-xs text-muted-foreground">
-                Configured
+                Team members
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Getting Started */}
-        <div className="mt-12">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-            Getting Started
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-                    1
-                  </span>
-                  <span>Create a Job</span>
-                </CardTitle>
-                <CardDescription>
-                  Start by creating a new job with client details, quote amount, and project specifications.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href="/jobs/new">
-                  <Button className="w-full">Create Job</Button>
-                </Link>
-              </CardContent>
-            </Card>
+        {/* Secondary Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <DollarSign className="h-5 w-5 mr-2" />
+                Profit Overview
+              </CardTitle>
+              <CardDescription>Recent profit performance and trends</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Coming soon: charts and analytics.
+              </p>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-                    2
-                  </span>
-                  <span>Add Costs</span>
-                </CardTitle>
-                <CardDescription>
-                  Enter materials, labor, travel, and other costs to calculate your true project expenses.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href="/inventory">
-                  <Button variant="outline" className="w-full">Manage Inventory</Button>
-                </Link>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Quick Tips
+              </CardTitle>
+              <CardDescription>Improve margins and track costs</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <li>Track actual installer time per job</li>
+                <li>Update inventory prices monthly</li>
+                <li>Use buckets to enforce profit allocation</li>
+              </ul>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-                    3
-                  </span>
-                  <span>View Profit</span>
-                </CardTitle>
-                <CardDescription>
-                  See your calculated profit and how it's allocated across your configured buckets.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Settings className="h-5 w-5 mr-2" />
+                Get Started
+              </CardTitle>
+              <CardDescription>Set up your defaults</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex space-x-2">
+                <Link href="/settings">
+                  <Button size="sm">Settings</Button>
+                </Link>
                 <Link href="/buckets">
-                  <Button variant="outline" className="w-full">Configure Buckets</Button>
+                  <Button size="sm" variant="outline">Buckets</Button>
                 </Link>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

@@ -21,9 +21,10 @@ export default function InventoryPage() {
 
   const utils = trpc.useUtils()
 
-  const { data: inventoryItems, isLoading } = trpc.inventory.listItems.useQuery({
+  const { data: inventoryItemsRaw, isLoading } = trpc.inventory.listItems.useQuery({
     search: searchTerm || undefined,
   })
+  const inventoryItems = Array.isArray(inventoryItemsRaw) ? inventoryItemsRaw : []
 
   const createItem = trpc.inventory.createItem.useMutation({
     onSuccess: () => {
@@ -60,12 +61,12 @@ export default function InventoryPage() {
 
   const handleCreateItem = (formData: FormData) => {
     const data = {
-      sku: formData.get('sku') as string || undefined,
+      sku: (formData.get('sku') as string) || undefined,
       name: formData.get('name') as string,
       unit: formData.get('unit') as 'SQFT' | 'LF' | 'PIECE' | 'ROLL' | 'DAY' | 'HOUR',
-      defaultCost: parseFloat(formData.get('defaultCost') as string),
-      defaultPrice: parseFloat(formData.get('defaultPrice') as string),
-      notes: formData.get('notes') as string || undefined,
+      defaultCost: parseFloat((formData.get('defaultCost') as string) ?? '0') || 0,
+      defaultPrice: parseFloat((formData.get('defaultPrice') as string) ?? '0') || 0,
+      notes: (formData.get('notes') as string) || undefined,
     }
 
     createItem.mutate(data)
@@ -75,12 +76,12 @@ export default function InventoryPage() {
     if (!editingItem) return
 
     const data = {
-      sku: formData.get('sku') as string || undefined,
+      sku: (formData.get('sku') as string) || undefined,
       name: formData.get('name') as string,
       unit: formData.get('unit') as 'SQFT' | 'LF' | 'PIECE' | 'ROLL' | 'DAY' | 'HOUR',
-      defaultCost: parseFloat(formData.get('defaultCost') as string),
-      defaultPrice: parseFloat(formData.get('defaultPrice') as string),
-      notes: formData.get('notes') as string || undefined,
+      defaultCost: parseFloat((formData.get('defaultCost') as string) ?? '0') || 0,
+      defaultPrice: parseFloat((formData.get('defaultPrice') as string) ?? '0') || 0,
+      notes: (formData.get('notes') as string) || undefined,
     }
 
     updateItem.mutate({ id: editingItem.id, data })
@@ -205,6 +206,8 @@ export default function InventoryPage() {
           <CardContent>
             {isLoading ? (
               <div className="text-center py-8">Loading...</div>
+            ) : inventoryItems.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">No items found.</div>
             ) : (
               <Table>
                 <TableHeader>
@@ -219,7 +222,7 @@ export default function InventoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventoryItems?.map((item) => (
+                  {inventoryItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{item.sku || '-'}</TableCell>
                       <TableCell>{item.name}</TableCell>

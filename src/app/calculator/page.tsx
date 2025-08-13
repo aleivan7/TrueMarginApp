@@ -22,8 +22,8 @@ export default function CalculatorPage() {
   })
 
   const { data: orgSettings } = trpc.settings.getOrgSettings.useQuery()
-  const { data: bucketSets } = trpc.settings.listBucketSets.useQuery()
-  const { data: inventoryItems } = trpc.inventory.listItems.useQuery({ active: true })
+  const { data: bucketSetsRaw } = trpc.settings.listBucketSets.useQuery()
+  const bucketSets = Array.isArray(bucketSetsRaw) ? bucketSetsRaw : []
 
   const calculateProfit = () => {
     const revenue = parseFloat(formData.revenue) || 0
@@ -54,7 +54,7 @@ export default function CalculatorPage() {
     const netProfitMargin = netRevenue > 0 ? (netProfit / netRevenue) * 100 : 0
 
     // Calculate bucket allocations
-    const selectedBucketSet = bucketSets?.find(bs => bs.id === formData.bucketSetId)
+    const selectedBucketSet = bucketSets.find((bs: any) => bs.id === formData.bucketSetId)
     const bucketAllocations = selectedBucketSet?.buckets.map((bucket: any) => ({
       name: bucket.name,
       amount: netProfit * (parseFloat(bucket.percent.toString()) / 100),
@@ -203,7 +203,7 @@ export default function CalculatorPage() {
                     <SelectValue placeholder="Select bucket set (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {bucketSets?.map((bucketSet) => (
+                    {bucketSets.map((bucketSet: any) => (
                       <SelectItem key={bucketSet.id} value={bucketSet.id}>
                         {bucketSet.name}
                       </SelectItem>

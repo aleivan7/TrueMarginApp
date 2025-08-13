@@ -68,18 +68,18 @@ export const inventoryRouter = router({
     .input(z.object({
       search: z.string().optional(),
       active: z.boolean().optional(),
-    }))
+    }).optional())
     .query(async ({ ctx, input }) => {
       const where: any = {}
       
-      if (input.search) {
+      if (input?.search) {
         where.OR = [
           { name: { contains: input.search, mode: 'insensitive' } },
           { sku: { contains: input.search, mode: 'insensitive' } },
         ]
       }
       
-      if (input.active !== undefined) {
+      if (input?.active !== undefined) {
         where.active = input.active
       }
 
@@ -137,11 +137,11 @@ export const inventoryRouter = router({
   listStock: publicProcedure
     .input(z.object({
       inventoryItemId: z.string().optional(),
-    }))
+    }).optional())
     .query(async ({ ctx, input }) => {
       const where: any = {}
       
-      if (input.inventoryItemId) {
+      if (input?.inventoryItemId) {
         where.inventoryItemId = input.inventoryItemId
       }
 

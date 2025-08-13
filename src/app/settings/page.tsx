@@ -15,7 +15,8 @@ export default function SettingsPage() {
   const utils = trpc.useUtils()
 
   const { data: orgSettings, isLoading } = trpc.settings.getOrgSettings.useQuery()
-  const { data: bucketSets } = trpc.settings.listBucketSets.useQuery()
+  const { data: bucketSetsRaw } = trpc.settings.listBucketSets.useQuery()
+  const bucketSets = Array.isArray(bucketSetsRaw) ? bucketSetsRaw : []
 
   const updateOrgSettings = trpc.settings.updateOrgSettings.useMutation({
     onSuccess: () => {
@@ -33,13 +34,13 @@ export default function SettingsPage() {
     setIsSaving(true)
     
     const data = {
-      overheadPercent: parseFloat(formData.get('overheadPercent') as string),
-      mileageRatePerMile: parseFloat(formData.get('mileageRatePerMile') as string),
-      perDiemPerDay: parseFloat(formData.get('perDiemPerDay') as string),
+      overheadPercent: parseFloat((formData.get('overheadPercent') as string) ?? '0') || 0,
+      mileageRatePerMile: parseFloat((formData.get('mileageRatePerMile') as string) ?? '0') || 0,
+      perDiemPerDay: parseFloat((formData.get('perDiemPerDay') as string) ?? '0') || 0,
       defaultSalesTaxRatePct: formData.get('defaultSalesTaxRatePct') 
         ? parseFloat(formData.get('defaultSalesTaxRatePct') as string)
         : undefined,
-      bucketSetId: formData.get('bucketSetId') as string || undefined,
+      bucketSetId: (formData.get('bucketSetId') as string) || undefined,
     }
 
     updateOrgSettings.mutate(data)
@@ -52,6 +53,11 @@ export default function SettingsPage() {
       </div>
     )
   }
+
+  const overheadPercentStr = orgSettings?.overheadPercent ? orgSettings.overheadPercent.toString() : '15.0'
+  const mileageRateStr = orgSettings?.mileageRatePerMile ? orgSettings.mileageRatePerMile.toString() : '0.70'
+  const perDiemStr = orgSettings?.perDiemPerDay ? orgSettings.perDiemPerDay.toString() : '30.00'
+  const salesTaxStr = orgSettings?.defaultSalesTaxRatePct ? orgSettings.defaultSalesTaxRatePct.toString() : ''
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -89,7 +95,7 @@ export default function SettingsPage() {
                     name="overheadPercent"
                     type="number"
                     step="0.01"
-                    defaultValue={orgSettings?.overheadPercent.toString() || '15.0'}
+                    defaultValue={overheadPercentStr}
                     required
                   />
                   <p className="text-sm text-gray-500 mt-1">
@@ -103,7 +109,7 @@ export default function SettingsPage() {
                     name="mileageRatePerMile"
                     type="number"
                     step="0.01"
-                    defaultValue={orgSettings?.mileageRatePerMile.toString() || '0.70'}
+                    defaultValue={mileageRateStr}
                     required
                   />
                   <p className="text-sm text-gray-500 mt-1">
@@ -120,7 +126,7 @@ export default function SettingsPage() {
                     name="perDiemPerDay"
                     type="number"
                     step="0.01"
-                    defaultValue={orgSettings?.perDiemPerDay.toString() || '30.00'}
+                    defaultValue={perDiemStr}
                     required
                   />
                   <p className="text-sm text-gray-500 mt-1">
@@ -134,7 +140,7 @@ export default function SettingsPage() {
                     name="defaultSalesTaxRatePct"
                     type="number"
                     step="0.01"
-                    defaultValue={orgSettings?.defaultSalesTaxRatePct?.toString() || ''}
+                    defaultValue={salesTaxStr}
                     placeholder="Optional"
                   />
                   <p className="text-sm text-gray-500 mt-1">
@@ -163,7 +169,7 @@ export default function SettingsPage() {
                   defaultValue={orgSettings?.bucketSetId || ''}
                 >
                   <option value="">No default bucket set</option>
-                  {bucketSets?.map((bucketSet) => (
+                  {bucketSets.map((bucketSet) => (
                     <option key={bucketSet.id} value={bucketSet.id}>
                       {bucketSet.name} ({bucketSet.buckets.reduce((sum: number, bucket: any) => sum + parseFloat(bucket.percent.toString()), 0)}%)
                     </option>
