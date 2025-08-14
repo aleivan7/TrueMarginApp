@@ -1,28 +1,22 @@
 'use client'
 
-import { Navigation } from '@/components/navigation'
+import Link from 'next/link'
+import { useState } from 'react'
+import { trpc } from '@/lib/trpc/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Briefcase, Plus, Search } from 'lucide-react'
-import Link from 'next/link'
 
 export default function JobsPage() {
+  const [search, setSearch] = useState('')
+
+  const { data: jobsRaw, isLoading } = trpc.jobs.list.useQuery({
+    search: search || undefined,
+  })
+  const jobs = Array.isArray(jobsRaw) ? jobsRaw : []
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                TrueMargin
-              </h1>
-            </div>
-            <Navigation />
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
@@ -42,7 +36,7 @@ export default function JobsPage() {
           </Link>
         </div>
 
-        {/* Search and Filters */}
+        {/* Search */}
         <div className="mb-6">
           <div className="flex space-x-4">
             <div className="flex-1 max-w-md">
@@ -50,7 +44,9 @@ export default function JobsPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
-                  placeholder="Search jobs..."
+                  placeholder="Search jobs (name, client, code)..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
                 />
               </div>
@@ -60,64 +56,69 @@ export default function JobsPage() {
 
         {/* Jobs List */}
         <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Briefcase className="h-5 w-5" />
-                <span>Example Job</span>
-              </CardTitle>
-              <CardDescription>
-                Smith Residence - Living Room • JOB-001
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="font-medium text-gray-500">Client:</span>
-                  <p className="text-gray-900 dark:text-gray-100">John Smith</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-500">Quote:</span>
-                  <p className="text-gray-900 dark:text-gray-100">$12,500.00</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-500">Status:</span>
-                  <p className="text-gray-900 dark:text-gray-100">In Progress</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-500">Created:</span>
-                  <p className="text-gray-900 dark:text-gray-100">Today</p>
-                </div>
-              </div>
-              <div className="mt-4 flex space-x-2">
-                <Link href="/jobs/1">
-                  <Button variant="outline" size="sm">View Details</Button>
+          {isLoading ? (
+            <Card className="text-center py-12"><CardContent>Loading...</CardContent></Card>
+          ) : jobs.length === 0 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Briefcase className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  No jobs found
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  Create your first job to get started.
+                </p>
+                <Link href="/jobs/new">
+                  <Button className="flex items-center space-x-2 mx-auto">
+                    <Plus className="h-4 w-4" />
+                    <span>Create Job</span>
+                  </Button>
                 </Link>
-                <Link href="/jobs/1/edit">
-                  <Button variant="outline" size="sm">Edit</Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Empty State */}
-          <Card className="text-center py-12">
-            <CardContent>
-              <Briefcase className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                No jobs yet
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Get started by creating your first job to track profitability.
-              </p>
-              <Link href="/jobs/new">
-                <Button className="flex items-center space-x-2 mx-auto">
-                  <Plus className="h-4 w-4" />
-                  <span>Create Your First Job</span>
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            jobs.map((job) => (
+              <Card key={job.id}>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Briefcase className="h-5 w-5" />
+                    <span>{job.name}</span>
+                  </CardTitle>
+                  <CardDescription>
+                    {job.clientName} • {job.code}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-500">Quote:</span>
+                      <p className="text-gray-900 dark:text-gray-100">${job.quoteTotal?.toString?.() ?? '0.00'}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">Contract:</span>
+                      <p className="text-gray-900 dark:text-gray-100">{job.contractType}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">Property:</span>
+                      <p className="text-gray-900 dark:text-gray-100">{job.propertyType}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">Created:</span>
+                      <p className="text-gray-900 dark:text-gray-100">{new Date(job.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex space-x-2">
+                    <Link href={`/jobs/${job.id}`}>
+                      <Button variant="outline" size="sm">View Details</Button>
+                    </Link>
+                    <Link href={`/jobs/${job.id}/edit`}>
+                      <Button variant="outline" size="sm">Edit</Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </main>
     </div>
